@@ -1,0 +1,19 @@
+version: "3"
+services:
+  squid-proxy:
+    image: aabor/squid:4.10-20.04_edge
+    build: .
+    container_name: squid-proxy
+    ports:
+      - "3128:3128"
+    environment:
+      - TZ=UTC
+    volumes:
+      - ~/.squid/.htpasswd:/etc/squid/.htpasswd
+      - ~/.squid/log:/var/log/squid
+      - ~/.squid/data:/var/spool/squid
+    restart: always
+
+
+ 
+ 
