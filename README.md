@@ -76,3 +76,119 @@ tail ~/.squid/log/access.log
 #      0 172.19.0.1 TCP_DENIED/407 4129 CONNECT doh.xfinity.com:443 - HIER_NONE/- text/html
 #      0 172.19.0.1 TCP_DENIED/407 4129 CONNECT doh.xfinity.com:443 - HIER_NONE/- text/html
 ```
+
+
+# Alpine Linux Squid Proxy on AWS EC2
+
+Configuration details:
+https://wiki.alpinelinux.org/wiki/Setting_up_Explicit_Squid_Proxy
+
+```sh
+ssh alpine@18.191.145.152
+doas su
+
+apk update
+apk add bash nano vim curl zip unzip git lsblk
+apk add mandoc man-pages mandoc-apropos less
+apk add less-doc iptables-doc
+apk add tzdata
+apk add squid apache2-utils
+
+# echo "America/Los_Angeles" >  /etc/timezone
+
+rc-service squid start
+rc-update add squid
+squid -k check
+mkdir -p /var/spool/squid
+nano /etc/squid/.htpasswd
+nano /etc/squid/squid.conf
+
+squid -k reconfigure
+rc-service squid status
+#  * status: started
+netstat -tl
+Active Internet connections (only servers)
+# Proto Recv-Q Send-Q Local Address           Foreign Address         State       
+# tcp        0      0 0.0.0.0:ssh             0.0.0.0:*               LISTEN      
+# tcp        0      0 :::3128                 :::*                    LISTEN      
+# tcp        0      0 :::ssh                  :::*                    LISTEN
+
+```
+From the remote
+```sh
+terraform validate
+terraform plan
+terraform apply
+# try ssh connection
+ssh alpine@$(terraform output --raw public_ip)
+exit
+# try proxy, enter valid password
+curl -x $(terraform output --raw public_ip):3128 --proxy-user proxyuser:<pwd> -I https://google.com
+# HTTP/1.1 200 Connection established
+
+# HTTP/2 301 
+# location: https://www.google.com/
+# content-type: text/html; charset=UTF-8
+# content-security-policy-report-only: object-src 'none';base-uri 'self';script-src 'nonce-YXmGOZLT-rKpL-Yy1hEKHA' 'strict-dynamic' 'report-sample' 'unsafe-eval' 'unsafe-inline' https: http:;report-uri https://csp.withgoogle.com/csp/gws/other-hp
+# date: Tue, 04 Jul 2023 18:50:40 GMT
+# expires: Thu, 03 Aug 2023 18:50:40 GMT
+# cache-control: public, max-age=2592000
+# server: gws
+# content-length: 220
+# x-xss-protection: 0
+# x-frame-options: SAMEORIGIN
+# alt-svc: h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+
+# try proxy with wrong password
+curl -x $(terraform output --raw public_ip):3128 --proxy-user proxyuser:wrong -I https://google.com
+# HTTP/1.1 407 Proxy Authentication Required
+# Server: squid/5.9
+# Mime-Version: 1.0
+# Date: Tue, 04 Jul 2023 18:52:24 GMT
+# Content-Type: text/html;charset=utf-8
+# Content-Length: 3612
+# X-Squid-Error: ERR_CACHE_ACCESS_DENIED 0
+# Vary: Accept-Language
+# Content-Language: en
+# Proxy-Authenticate: Basic realm="Squid Basic Authentication"
+# X-Cache: MISS from ip-172-31-2-15
+# X-Cache-Lookup: NONE from ip-172-31-2-15:3128
+# Via: 1.1 ip-172-31-2-15 (squid/5.9)
+# Connection: keep-alive
+
+# curl: (56) CONNECT tunnel failed, response 407
+```
+
+
+# Squid on Mac OS
+
+```sh
+# /opt/homebrew/etc/squid.conf
+# /opt/homebrew/etc/squid.conf.default
+# /opt/homebrew/etc/squid.conf.documented
+# /opt/homebrew/Cellar/squid/5.9
+
+# to start squid at launch
+brew services start squid
+# To restart squid after an upgrade:
+brew services restart squid
+# Or, if you don't want/need a background service you can just run:
+/opt/homebrew/opt/squid/sbin/squid -N -d 1
+
+curl -x localhost:3128 -I https://google.com
+# HTTP/1.1 200 Connection established
+# HTTP/2 301 
+# location: https://www.google.com/
+
+ip a show en0
+en0: flags=8863<UP,BROADCAST,SMART,RUNNING,SIMPLEX,MULTICAST> mtu 1500
+	inet 192.168.0.17/24 brd 192.168.0.255 en0
+
+sudo nano /opt/homebrew/etc/squid.conf
+# uncomment:
+# http_access allow localnet
+curl -x 192.168.0.17:3128 -I https://google.com
+
+# list all the services
+sudo launchctl list
+```
