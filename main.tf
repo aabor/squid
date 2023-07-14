@@ -50,6 +50,22 @@ resource "aws_security_group" "squid" {
   }
 }
 
+# resource "aws_security_group" "web" {
+#   name        = "web"
+#   description = "Web server"
+#   ingress {
+#     from_port   = 80
+#     to_port     = 80
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+#     ingress {
+#     from_port   = 443
+#     to_port     = 443
+#     protocol    = "tcp"
+#     cidr_blocks = ["0.0.0.0/0"]
+#   }
+# }
 resource "aws_security_group" "ssh" {
   name        = "ssh"
   description = "SSH access from the VPC"
@@ -84,7 +100,7 @@ resource "aws_instance" "vpn" {
   ami                         = "ami-0c1921bccbb7794ac" # eu-north-1
   availability_zone           = var.availability_zone
   instance_type               = "t4g.nano"
-  vpc_security_group_ids      = [aws_security_group.ssh.id, aws_security_group.openvpn.id, aws_security_group.squid.id]
+  vpc_security_group_ids      = [aws_security_group.ssh.id, aws_security_group.openvpn.id, aws_security_group.squid.id, aws_security_group.web.id]
   associate_public_ip_address = true
   tags = {
     Name      = "aabor@vpn"

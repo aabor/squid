@@ -192,3 +192,49 @@ curl -x 192.168.0.17:3128 -I https://google.com
 # list all the services
 sudo launchctl list
 ```
+
+# OpenVPN on Alpine
+
+```sh
+doas su
+
+apk update
+apk upgrade
+
+apk add openvpn
+rc-update add openvpn default
+modprobe tun
+echo "tun" >> /etc/modules-load.d/tun.conf
+# Enable IP Forwarding
+echo "net.ipv4.ip_forward = 1" >> /etc/sysctl.d/ipv4.conf
+sysctl -p /etc/sysctl.d/ipv4.conf
+
+# Generating SSL certs with ACF
+/sbin/setup-acf
+# Install acf-openssl
+apk add acf-openssl
+openssl dhparam -out /etc/openvpn/dh2048.pem 2048
+# setup password manually for ACF root user, not confuse with alpine user
+acfpasswd root
+
+# download certificates
+# To get the ca cert out:
+openssl pkcs12 -in aabor.pfx -cacerts -nokeys -out ca.pem
+# To get the cert file out:
+openssl pkcs12 -in aabor.pfx -nokeys -clcerts -out cert.pem
+# To get the private key file out: (Make sure the key stays private)
+openssl pkcs12 -in aabor.pfx -nocerts -nodes -out key.pem
+
+# test openvpn configuration
+openvpn --config /etc/openvpn/openvpn.conf
+rc-update openvpn
+/etc/openvpn # rc-service openvpn restart
+#  * Caching service dependencies ...                                       [ ok ]
+#  * Starting OpenVPN ...                                                   [ ok ]
+```
+
+https://wiki.alpinelinux.org/wiki/Generating_SSL_certs_with_ACF
+
+Browse to your computer https://ipaddr/
+Log in as root.
+Click on the User Management tab and create an account. 
